@@ -1,0 +1,7 @@
+{
+  "name": "Presença CONQUITECH-MA",
+  "description": "App de controle de presença e emissão de certificados para monitores do I Congresso de Química, Indústria e Tecnologia do Maranhão (LAQI / UFMA).",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
+

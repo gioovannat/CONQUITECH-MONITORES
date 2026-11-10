@@ -1,0 +1,80 @@
+{
+  "entities": {
+    "Monitor": {
+      "title": "Monitor",
+      "description": "Dados cadastrais dos 57 monitores do congresso CONQUITECH-MA.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 64, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "nome": { "type": "string", "minLength": 2, "maxLength": 150 },
+        "grupo": { "type": "string", "enum": ["LAQI", "EXTERNO"] },
+        "turno": { "type": "string", "enum": ["MANHA", "TARDE"] },
+        "ativo": { "type": "boolean" },
+        "criadoEm": { "type": "number" },
+        "atualizadoEm": { "type": "number" }
+      },
+      "required": ["id", "nome", "grupo", "ativo"]
+    },
+    "Presenca": {
+      "title": "Presença",
+      "description": "Registro de presença de um monitor em um dia e turno específico.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 64, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "monitorId": { "type": "string", "maxLength": 64, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "dia": { "type": "integer", "enum": [0, 1, 2, 3, 4] },
+        "turno": { "type": "string", "enum": ["MANHA", "TARDE"] },
+        "registradoPor": { "type": "string", "maxLength": 128 },
+        "registradoPorNome": { "type": "string", "maxLength": 150 },
+        "timestamp": { "type": "number" }
+      },
+      "required": ["id", "monitorId", "dia", "turno", "registradoPor", "timestamp"]
+    },
+    "Usuario": {
+      "title": "Usuário da Equipe D",
+      "description": "Membros autorizados para registrar presença ou gerenciar o sistema.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "nome": { "type": "string", "minLength": 2, "maxLength": 150 },
+        "email": { "type": "string", "format": "email", "maxLength": 150 },
+        "perfil": { "type": "string", "enum": ["coordenador", "equipe"] },
+        "ativo": { "type": "boolean" },
+        "criadoEm": { "type": "number" }
+      },
+      "required": ["id", "nome", "email", "perfil", "ativo"]
+    },
+    "AcaoLog": {
+      "title": "Log de Auditoria",
+      "description": "Registro cronológico das últimas 50 ações executadas no sistema.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 64 },
+        "timestamp": { "type": "number" },
+        "usuarioId": { "type": "string", "maxLength": 128 },
+        "usuarioNome": { "type": "string", "maxLength": 150 },
+        "tipo": { "type": "string", "maxLength": 50 },
+        "detalhes": { "type": "string", "maxLength": 500 }
+      },
+      "required": ["id", "timestamp", "usuarioId", "usuarioNome", "tipo", "detalhes"]
+    }
+  },
+  "firestore": {
+    "/monitores/{monitorId}": {
+      "schema": { "$ref": "#/entities/Monitor" },
+      "description": "Coleção de monitores com informações de grupo, turno e status ativo."
+    },
+    "/presencas/{presencaId}": {
+      "schema": { "$ref": "#/entities/Presenca" },
+      "description": "Coleção de presenças com id no formato {monitorId}_{dia}_{turno}."
+    },
+    "/usuarios/{usuarioId}": {
+      "schema": { "$ref": "#/entities/Usuario" },
+      "description": "Usuários do sistema (coordenadores e membros da Equipe D)."
+    },
+    "/logs/{logId}": {
+      "schema": { "$ref": "#/entities/AcaoLog" },
+      "description": "Histórico das ações de registro e alteração no app."
+    }
+  }
+}

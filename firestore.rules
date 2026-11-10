@@ -1,0 +1,61 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Default deny catch-all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isCoordinator() {
+      return isSignedIn() && (
+        exists(/databases/$(database)/documents/usuarios/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.perfil == 'coordenador'
+      );
+    }
+
+    function isTeamMember() {
+      return isSignedIn() && (
+        exists(/databases/$(database)/documents/usuarios/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.ativo == true
+      );
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    // Coleção Monitores: Todos os autenticados leem; apenas coordenador cria/altera
+    match /monitores/{monitorId} {
+      allow get, list: if isSignedIn();
+      allow create, update, delete: if isCoordinator() && isValidId(monitorId);
+    }
+
+    // Coleção Presenças: id no formato {monitorId}_{dia}_{turno}
+    // Todos os membros ativos da Equipe D podem marcar e ler
+    match /presencas/{presencaId} {
+      allow get, list: if isSignedIn();
+      allow create, delete: if isTeamMember() && isValidId(presencaId);
+      allow update: if isCoordinator() && isValidId(presencaId);
+    }
+
+    // Coleção Usuários: Usuário pode ler seu próprio documento, coordenador lê e gerencia todos
+    match /usuarios/{usuarioId} {
+      allow get: if isSignedIn() && (request.auth.uid == usuarioId || isCoordinator());
+      allow list: if isCoordinator();
+      allow create, update, delete: if isCoordinator() && isValidId(usuarioId);
+    }
+
+    // Coleção Logs: Todos os membros autenticados leem; qualquer ação autorizada pode registrar log
+    match /logs/{logId} {
+      allow get, list: if isSignedIn();
+      allow create: if isTeamMember() && isValidId(logId);
+      allow update, delete: if isCoordinator();
+    }
+  }
+}
