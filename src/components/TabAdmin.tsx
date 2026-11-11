@@ -131,7 +131,7 @@ export const TabAdmin: React.FC = () => {
       nome: formNomeUsuario,
       email: formEmailUsuario,
       perfil: formPerfilUsuario,
-      senha: formSenhaUsuario || 'conquitech2026',
+      senha: formSenhaUsuario,
     });
 
     if (res.sucesso) {
@@ -800,7 +800,10 @@ export const TabAdmin: React.FC = () => {
                   type="password"
                   value={formSenhaUsuario}
                   onChange={(e) => setFormSenhaUsuario(e.target.value)}
-                  placeholder="Padrão: conquitech2026"
+                  minLength={8}
+                  required
+                  autoComplete="new-password"
+                  placeholder="Defina uma senha exclusiva (mín. 8 caracteres)"
                   className="w-full min-h-[46px] rounded-xl border border-zinc-200 bg-white px-3 text-xs text-zinc-900 focus:border-teal-600 focus:outline-none dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-100"
                 />
               </div>

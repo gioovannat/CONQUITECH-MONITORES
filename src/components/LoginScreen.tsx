@@ -22,17 +22,6 @@ export const LoginScreen: React.FC = () => {
     }
   };
 
-  const preencherAcessoRapido = (tipo: 'coordenador' | 'equipe') => {
-    if (tipo === 'coordenador') {
-      setEmail('coordenacao@conquitech.ufma.br');
-      setSenha('conquitech2026');
-    } else {
-      setEmail('equiped@conquitech.ufma.br');
-      setSenha('equiped2026');
-    }
-    setErro(null);
-  };
-
   return (
     <div className="relative min-h-screen bg-gradient-to-b from-[#eaf4f3] via-[#dcebe8] to-[#d3e5e2] text-zinc-900 flex flex-col justify-center px-4 py-8 overflow-hidden font-sans">
       {/* Luz ambiente de fundo inspirada na estética do anexo */}
@@ -127,28 +116,6 @@ export const LoginScreen: React.FC = () => {
             </button>
           </form>
 
-          {/* Atalhos Rápidos com Pills Modernas */}
-          <div className="mt-5 pt-4 border-t border-zinc-200/60 text-center">
-            <span className="text-[10px] font-black uppercase tracking-wider text-zinc-400 block mb-2">
-              Credenciais Rápidas de Teste
-            </span>
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => preencherAcessoRapido('coordenador')}
-                className="min-h-[44px] rounded-full bg-teal-50 border border-teal-200/80 text-[#007a87] text-xs font-extrabold hover:bg-teal-100 transition active:scale-95"
-              >
-                ⚡ Coordenador
-              </button>
-              <button
-                type="button"
-                onClick={() => preencherAcessoRapido('equipe')}
-                className="min-h-[44px] rounded-full bg-zinc-100 border border-zinc-200 text-zinc-800 text-xs font-extrabold hover:bg-zinc-200 transition active:scale-95"
-              >
-                ⚡ Equipe D
-              </button>
-            </div>
-          </div>
         </div>
 
         {/* Informação sobre permissões fechadas */}
