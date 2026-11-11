@@ -35,7 +35,7 @@ export const TabAdmin: React.FC = () => {
     isPresencaRegistrada,
   } = useApp();
 
-  const { usuarios, usuarioAtual, criarUsuario, alternarStatusUsuario } = useAuth();
+  const { usuarios, usuarioAtual, convidarUsuario, alternarStatusUsuario } = useAuth();
 
   const [secaoAtiva, setSecaoAtiva] = useState<'monitores' | 'usuarios' | 'retroativo' | 'logs'>('monitores');
   const [historicoAberto, setHistoricoAberto] = useState(false);
@@ -53,7 +53,6 @@ export const TabAdmin: React.FC = () => {
   const [formNomeUsuario, setFormNomeUsuario] = useState('');
   const [formEmailUsuario, setFormEmailUsuario] = useState('');
   const [formPerfilUsuario, setFormPerfilUsuario] = useState<PerfilUsuario>('equipe');
-  const [formSenhaUsuario, setFormSenhaUsuario] = useState('');
 
   // Estado para Registro Retroativo
   const [retroMonitorId, setRetroMonitorId] = useState<string>(monitores[0]?.id || '');
@@ -127,21 +126,24 @@ export const TabAdmin: React.FC = () => {
   // Funções de Usuário
   const salvarUsuario = async (e: React.FormEvent) => {
     e.preventDefault();
-    const res = await criarUsuario({
+    const redirectTo =
+      import.meta.env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL ??
+      `${window.location.origin}/auth/callback`;
+    const res = await convidarUsuario({
       nome: formNomeUsuario,
       email: formEmailUsuario,
       perfil: formPerfilUsuario,
-      senha: formSenhaUsuario,
+      redirectTo,
     });
 
     if (res.sucesso) {
-      exibirAlerta('sucesso', 'Novo usuário da Equipe D criado com sucesso.');
+      exibirAlerta('sucesso', 'Convite enviado. O novo membro poderá definir a própria senha pelo link recebido.');
       setModalUsuarioAberto(false);
       setFormNomeUsuario('');
       setFormEmailUsuario('');
-      setFormSenhaUsuario('');
+      setFormPerfilUsuario('equipe');
     } else {
-      exibirAlerta('erro', res.mensagem || 'Erro ao criar usuário.');
+      exibirAlerta('erro', res.mensagem || 'Não foi possível enviar o convite.');
     }
   };
 
@@ -732,7 +734,7 @@ export const TabAdmin: React.FC = () => {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs">
           <div className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-2xl dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-zinc-100">
             <div className="flex items-center justify-between pb-3 border-b border-zinc-200 dark:border-zinc-800">
-              <h3 className="font-bold text-base">Novo Membro da Equipe D</h3>
+              <h3 className="font-bold text-base">Convidar membro da Equipe D</h3>
               <button
                 onClick={() => setModalUsuarioAberto(false)}
                 className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 font-bold"
@@ -742,6 +744,9 @@ export const TabAdmin: React.FC = () => {
             </div>
 
             <form onSubmit={salvarUsuario} className="mt-4 space-y-3">
+              <p className="text-xs leading-relaxed text-zinc-500">
+                Enviaremos um link de convite para o endereço informado. A pessoa definirá a própria senha no primeiro acesso.
+              </p>
               <div>
                 <label className="text-xs font-bold block mb-1">Nome</label>
                 <input
@@ -794,20 +799,6 @@ export const TabAdmin: React.FC = () => {
                 </div>
               </div>
 
-              <div>
-                <label className="text-xs font-bold block mb-1">Senha de Acesso</label>
-                <input
-                  type="password"
-                  value={formSenhaUsuario}
-                  onChange={(e) => setFormSenhaUsuario(e.target.value)}
-                  minLength={8}
-                  required
-                  autoComplete="new-password"
-                  placeholder="Defina uma senha exclusiva (mín. 8 caracteres)"
-                  className="w-full min-h-[46px] rounded-xl border border-zinc-200 bg-white px-3 text-xs text-zinc-900 focus:border-teal-600 focus:outline-none dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-100"
-                />
-              </div>
-
               <div className="flex gap-2 pt-3">
                 <button
                   type="button"
@@ -820,7 +811,7 @@ export const TabAdmin: React.FC = () => {
                   type="submit"
                   className="flex-1 min-h-[48px] rounded-xl bg-teal-700 font-bold text-xs text-white hover:bg-teal-600"
                 >
-                  Criar Conta
+                  Enviar convite
                 </button>
               </div>
             </form>
