@@ -8,6 +8,8 @@ import { TabRegistrar } from './components/TabRegistrar';
 import { TabStatus } from './components/TabStatus';
 import { TabAdmin } from './components/TabAdmin';
 import { LoginScreen } from './components/LoginScreen';
+import { AuthCallbackScreen } from './components/AuthCallbackScreen';
+import { SetPasswordScreen } from './components/SetPasswordScreen';
 import { NotificationBanner } from './components/NotificationBanner';
 import { CentralNotificacoesModal } from './components/CentralNotificacoesModal';
 import { SyncStatusModal } from './components/SyncStatusModal';
@@ -15,7 +17,7 @@ import { OnboardingTour } from './components/OnboardingTour';
 import { CheckCircle2 } from 'lucide-react';
 
 function MainApp() {
-  const { usuarioAtual, estaCarregando } = useAuth();
+  const { usuarioAtual, estaCarregando, precisaDefinirSenha, definirSenha } = useAuth();
   const {
     modalSyncAberto,
     setModalSyncAberto,
@@ -32,6 +34,10 @@ function MainApp() {
         Verificando sessão segura...
       </main>
     );
+  }
+
+  if (precisaDefinirSenha) {
+    return <SetPasswordScreen onSubmit={definirSenha} />;
   }
 
   if (!usuarioAtual) {
@@ -105,6 +111,8 @@ function MainApp() {
 }
 
 export default function App() {
+  if (window.location.pathname === '/auth/callback') return <AuthCallbackScreen />;
+
   return (
     <AuthProvider>
       <AppProvider>
