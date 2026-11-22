@@ -17,7 +17,7 @@ import { OnboardingTour } from './components/OnboardingTour';
 import { CheckCircle2 } from 'lucide-react';
 
 function MainApp() {
-  const { usuarioAtual, estaCarregando, precisaDefinirSenha, definirSenha } = useAuth();
+  const { usuarioAtual, verificandoSessao, precisaDefinirSenha, definirSenha } = useAuth();
   const {
     modalSyncAberto,
     setModalSyncAberto,
@@ -28,7 +28,7 @@ function MainApp() {
   } = useApp();
   const [abaAtiva, setAbaAtiva] = useState<TabTipo>('registrar');
 
-  if (estaCarregando) {
+  if (verificandoSessao) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-[#eaf4f3] px-4 text-sm font-medium text-[#007a87]" aria-live="polite">
         Verificando sessão segura...

@@ -176,21 +176,25 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (!usuarioAtual || !supabase) return;
     const sb = supabase;
     const carregarDoSupabase = async () => {
-      const [monitoresRes, presencasRes, logsRes] = await Promise.all([
-        sb.from('monitores').select('*').order('nome'),
-        sb.from('presencas').select('*'),
-        sb.from('logs').select('*').order('criado_em', { ascending: false }).limit(50),
-      ]);
-      if (!monitoresRes.error && (monitoresRes.data?.length ?? 0) > 0) {
-        setMonitores(monitoresRes.data!.map((m: any) => ({ id: m.id, nome: m.nome, grupo: m.grupo, turno: m.turno ?? undefined, ativo: m.ativo, criadoEm: new Date(m.criado_em).getTime(), atualizadoEm: new Date(m.atualizado_em).getTime() })));
-      } else if (usuarioAtual.perfil === 'coordenador' && !monitoresRes.error) {
-        const base = gerarMonitoresIniciais();
-        const { error } = await sb.from('monitores').upsert(base.map((m) => ({ id: m.id, nome: m.nome, grupo: m.grupo, turno: m.turno ?? null, ativo: m.ativo })));
-        if (!error) setMonitores(base);
+      try {
+        const [monitoresRes, presencasRes, logsRes] = await Promise.all([
+          sb.from('monitores').select('*').order('nome'),
+          sb.from('presencas').select('*'),
+          sb.from('logs').select('*').order('criado_em', { ascending: false }).limit(50),
+        ]);
+        if (!monitoresRes.error && (monitoresRes.data?.length ?? 0) > 0) {
+          setMonitores(monitoresRes.data!.map((m: any) => ({ id: m.id, nome: m.nome, grupo: m.grupo, turno: m.turno ?? undefined, ativo: m.ativo, criadoEm: new Date(m.criado_em).getTime(), atualizadoEm: new Date(m.atualizado_em).getTime() })));
+        } else if (usuarioAtual.perfil === 'coordenador' && !monitoresRes.error) {
+          const base = gerarMonitoresIniciais();
+          const { error } = await sb.from('monitores').upsert(base.map((m) => ({ id: m.id, nome: m.nome, grupo: m.grupo, turno: m.turno ?? null, ativo: m.ativo })));
+          if (!error) setMonitores(base);
+        }
+        if (!presencasRes.error) setPresencas((presencasRes.data ?? []).map((p: any) => ({ id: p.id, monitorId: p.monitor_id, dia: p.dia, turno: p.turno, registradoPor: p.registrado_por, registradoPorNome: p.registrado_por_nome, registradoPorEmail: p.registrado_por_email ?? undefined, registradoPorPerfil: p.registrado_por_perfil, timestamp: new Date(p.registrado_em).getTime() })));
+        if (!logsRes.error) setLogs((logsRes.data ?? []).map((l: any) => ({ id: l.id, usuarioId: l.usuario_id ?? 'sistema', usuarioNome: l.usuario_nome, tipo: l.tipo, detalhes: l.detalhes, timestamp: new Date(l.criado_em).getTime() })) as AcaoLog[]);
+        setSyncStatus('sincronizado');
+      } catch {
+        // Mantém os dados locais em cache caso haja falha temporária na consulta inicial
       }
-      if (!presencasRes.error) setPresencas((presencasRes.data ?? []).map((p: any) => ({ id: p.id, monitorId: p.monitor_id, dia: p.dia, turno: p.turno, registradoPor: p.registrado_por, registradoPorNome: p.registrado_por_nome, registradoPorEmail: p.registrado_por_email ?? undefined, registradoPorPerfil: p.registrado_por_perfil, timestamp: new Date(p.registrado_em).getTime() })));
-      if (!logsRes.error) setLogs((logsRes.data ?? []).map((l: any) => ({ id: l.id, usuarioId: l.usuario_id ?? 'sistema', usuarioNome: l.usuario_nome, tipo: l.tipo, detalhes: l.detalhes, timestamp: new Date(l.criado_em).getTime() })) as AcaoLog[]);
-      setSyncStatus('sincronizado');
     };
     void carregarDoSupabase();
   }, [usuarioAtual?.id]);
