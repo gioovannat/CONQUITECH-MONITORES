@@ -173,18 +173,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // Fonte de verdade compartilhada: mantém o cache local disponível para uso offline.
   useEffect(() => {
-    if (!usuarioAtual) return;
+    if (!usuarioAtual || !supabase) return;
+    const sb = supabase;
     const carregarDoSupabase = async () => {
       const [monitoresRes, presencasRes, logsRes] = await Promise.all([
-        supabase.from('monitores').select('*').order('nome'),
-        supabase.from('presencas').select('*'),
-        supabase.from('logs').select('*').order('criado_em', { ascending: false }).limit(50),
+        sb.from('monitores').select('*').order('nome'),
+        sb.from('presencas').select('*'),
+        sb.from('logs').select('*').order('criado_em', { ascending: false }).limit(50),
       ]);
       if (!monitoresRes.error && (monitoresRes.data?.length ?? 0) > 0) {
         setMonitores(monitoresRes.data!.map((m: any) => ({ id: m.id, nome: m.nome, grupo: m.grupo, turno: m.turno ?? undefined, ativo: m.ativo, criadoEm: new Date(m.criado_em).getTime(), atualizadoEm: new Date(m.atualizado_em).getTime() })));
       } else if (usuarioAtual.perfil === 'coordenador' && !monitoresRes.error) {
         const base = gerarMonitoresIniciais();
-        const { error } = await supabase.from('monitores').upsert(base.map((m) => ({ id: m.id, nome: m.nome, grupo: m.grupo, turno: m.turno ?? null, ativo: m.ativo })));
+        const { error } = await sb.from('monitores').upsert(base.map((m) => ({ id: m.id, nome: m.nome, grupo: m.grupo, turno: m.turno ?? null, ativo: m.ativo })));
         if (!error) setMonitores(base);
       }
       if (!presencasRes.error) setPresencas((presencasRes.data ?? []).map((p: any) => ({ id: p.id, monitorId: p.monitor_id, dia: p.dia, turno: p.turno, registradoPor: p.registrado_por, registradoPorNome: p.registrado_por_nome, registradoPorEmail: p.registrado_por_email ?? undefined, registradoPorPerfil: p.registrado_por_perfil, timestamp: new Date(p.registrado_em).getTime() })));
@@ -242,7 +243,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       };
 
       setLogs((antigos) => [novoLog, ...antigos.slice(0, 49)]);
-      if (usuarioAtual) {
+      if (usuarioAtual && supabase) {
         void supabase.from('logs').insert({ usuario_id: usuarioAtual.id, usuario_nome: novoLog.usuarioNome, tipo, detalhes });
       }
     },
@@ -251,6 +252,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // Sincronizar fila de ações pendentes quando a conexão voltar
   const processarFilaSincronizacao = useCallback(async () => {
+    if (!supabase) {
+      setSyncStatus('offline');
+      return;
+    }
+
     setSyncStatus('sincronizando');
 
     try {
@@ -282,7 +288,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     } catch {
       setSyncStatus('sincronizado');
     }
-  }, []);
+  }, [isOnline]);
 
   // Monitorar conectividade do navegador
   useEffect(() => {
@@ -404,8 +410,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       `Presença marcada para ${monitor.nome} (${diaConfig.diaSemana} ${diaConfig.diaMes} - ${turno === 'MANHA' ? 'Manhã' : 'Tarde'}) por ${usuarioAtual?.nome || 'Coordenador'}.`
     );
 
-    // Se estiver sem conexão, enfileira a ação para sincronizar quando a rede retornar
-    if (!isOnline) {
+    // Se estiver sem conexão ou sem Supabase ativo, enfileira a ação para sincronizar quando a rede retornar
+    if (!isOnline || !supabase) {
       setSyncStatus('offline');
       const itemFila: ItemFilaSincronizacao = {
         id: `sync_${Date.now()}_${presencaId}`,
@@ -456,7 +462,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       `Presença desfeita para ${monitor ? monitor.nome : monitorId} (${diaConfig.diaSemana} ${diaConfig.diaMes} - ${turno === 'MANHA' ? 'Manhã' : 'Tarde'}).`
     );
 
-    if (!isOnline) {
+    if (!isOnline || !supabase) {
       setSyncStatus('offline');
       const itemFila: ItemFilaSincronizacao = {
         id: `sync_desfazer_${Date.now()}_${presencaId}`,
@@ -520,7 +526,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setPresencas(novas);
       offlineStorage.salvarPresencas(novas);
 
-      if (isOnline) {
+      if (isOnline && supabase) {
         const { error } = await supabase.from('presencas').insert({ id: novaPresenca.id, monitor_id: novaPresenca.monitorId, dia, turno, registrado_por: novaPresenca.registradoPor, registrado_por_nome: novaPresenca.registradoPorNome, registrado_por_email: novaPresenca.registradoPorEmail ?? null, registrado_por_perfil: 'coordenador' });
         if (error) { setPresencas(presencas); return { sucesso: false, mensagem: error.message }; }
       }
@@ -534,7 +540,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setPresencas(novas);
       offlineStorage.salvarPresencas(novas);
 
-      if (isOnline) {
+      if (isOnline && supabase) {
         const { error } = await supabase.from('presencas').delete().eq('id', presencaId);
         if (error) { setPresencas(presencas); return { sucesso: false, mensagem: error.message }; }
       }
@@ -556,6 +562,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }): Promise<{ sucesso: boolean; mensagem?: string }> => {
     if (usuarioAtual?.perfil !== 'coordenador') {
       return { sucesso: false, mensagem: 'Apenas coordenadores podem adicionar monitores.' };
+    }
+    if (!supabase) {
+      return { sucesso: false, mensagem: 'Supabase não configurado no ambiente.' };
     }
 
     const novoMonitor: Monitor = {
@@ -580,6 +589,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   ): Promise<{ sucesso: boolean; mensagem?: string }> => {
     if (usuarioAtual?.perfil !== 'coordenador') {
       return { sucesso: false, mensagem: 'Apenas coordenadores podem editar monitores.' };
+    }
+    if (!supabase) {
+      return { sucesso: false, mensagem: 'Supabase não configurado no ambiente.' };
     }
 
     const { error } = await supabase.from('monitores').update({ nome: dados.nome.trim(), grupo: dados.grupo, turno: dados.grupo === 'EXTERNO' ? dados.turno : null, ativo: dados.ativo, atualizado_em: new Date().toISOString() }).eq('id', id);
@@ -608,6 +620,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (usuarioAtual?.perfil !== 'coordenador') {
       return { sucesso: false, mensagem: 'Apenas coordenadores podem desativar monitores.' };
     }
+    if (!supabase) {
+      return { sucesso: false, mensagem: 'Supabase não configurado no ambiente.' };
+    }
 
     let nomeMonitor = '';
     let novoStatus = true;
@@ -632,7 +647,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const restaurarMonitoresOriginais = () => {
-    if (usuarioAtual?.perfil !== 'coordenador') return;
+    if (usuarioAtual?.perfil !== 'coordenador' || !supabase) return;
     const base = gerarMonitoresIniciais();
     void supabase.from('monitores').upsert(base.map((m) => ({ id: m.id, nome: m.nome, grupo: m.grupo, turno: m.turno ?? null, ativo: m.ativo })));
     setMonitores(base);

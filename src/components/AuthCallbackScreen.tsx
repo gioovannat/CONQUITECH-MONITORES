@@ -8,6 +8,11 @@ export const AuthCallbackScreen: React.FC = () => {
     let active = true;
 
     const concluirAutenticacao = async () => {
+      if (!supabase) {
+        if (active) setErro(true);
+        return;
+      }
+
       const code = new URLSearchParams(window.location.search).get('code');
       if (code) {
         const { error } = await supabase.auth.exchangeCodeForSession(code);

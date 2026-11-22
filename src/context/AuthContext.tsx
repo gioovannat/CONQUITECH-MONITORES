@@ -1,25 +1,37 @@
 import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 import type { User } from '@supabase/supabase-js';
-import { supabase } from '../services/supabase';
+import { isSupabaseConfigured, supabase, supabaseConfigWarning } from '../services/supabase';
 
 export type PerfilUsuario = 'coordenador' | 'equipe';
 export interface Usuario { id: string; nome: string; email: string; perfil: PerfilUsuario; ativo: boolean; criadoEm: number; }
 
 interface AuthContextType {
-  usuarioAtual: Usuario | null; usuarios: Usuario[]; estaCarregando: boolean; precisaDefinirSenha: boolean;
+  usuarioAtual: Usuario | null;
+  usuarios: Usuario[];
+  estaCarregando: boolean;
+  precisaDefinirSenha: boolean;
+  supabaseConfigurado: boolean;
   login: (email: string, senha: string) => Promise<{ sucesso: boolean; mensagem?: string }>;
   logout: () => void;
   convidarUsuario: (dados: { nome: string; email: string; perfil: PerfilUsuario; redirectTo: string }) => Promise<{ sucesso: boolean; mensagem?: string }>;
   definirSenha: (senha: string) => Promise<{ sucesso: boolean; mensagem?: string }>;
   alternarStatusUsuario: (id: string) => Promise<{ sucesso: boolean; mensagem?: string }>;
 }
+
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
-const toUsuario = (profile: any, email = ''): Usuario => ({ id: profile.id, nome: profile.nome, email, perfil: profile.perfil, ativo: profile.ativo, criadoEm: new Date(profile.criado_em).getTime() });
+const toUsuario = (profile: any, email = ''): Usuario => ({
+  id: profile.id,
+  nome: profile.nome,
+  email,
+  perfil: profile.perfil,
+  ativo: profile.ativo,
+  criadoEm: new Date(profile.criado_em).getTime(),
+});
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [usuarioAtual, setUsuarioAtual] = useState<Usuario | null>(null);
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
-  const [estaCarregando, setEstaCarregando] = useState(true);
+  const [estaCarregando, setEstaCarregando] = useState<boolean>(isSupabaseConfigured);
   const [precisaDefinirSenha, setPrecisaDefinirSenha] = useState(false);
   const requestId = useRef(0);
 
@@ -33,7 +45,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const carregarPerfil = async (user: User | null) => {
     const currentRequest = ++requestId.current;
-    if (!user) {
+    if (!supabase || !user) {
       setUsuarioAtual(null);
       setUsuarios([]);
       setPrecisaDefinirSenha(false);
@@ -77,6 +89,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   useEffect(() => {
+    if (!supabase) {
+      setEstaCarregando(false);
+      return;
+    }
+
     let mounted = true;
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
       queueMicrotask(() => {
@@ -94,6 +111,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const login = async (email: string, senha: string) => {
+    if (!supabase) {
+      return {
+        sucesso: false,
+        mensagem: supabaseConfigWarning || 'Supabase não configurado no ambiente do projeto.',
+      };
+    }
+
     setEstaCarregando(true);
     const { data, error } = await supabase.auth.signInWithPassword({ email: email.trim(), password: senha });
     if (error || !data.user) {
@@ -106,10 +130,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logout = () => {
     limparSessao();
-    void supabase.auth.signOut();
+    if (supabase) {
+      void supabase.auth.signOut();
+    }
   };
 
   const convidarUsuario = async (dados: { nome: string; email: string; perfil: PerfilUsuario; redirectTo: string }) => {
+    if (!supabase) {
+      return {
+        sucesso: false,
+        mensagem: supabaseConfigWarning || 'Supabase não configurado no ambiente do projeto.',
+      };
+    }
+
     if (usuarioAtual?.perfil !== 'coordenador') return { sucesso: false, mensagem: 'Apenas coordenadores podem convidar membros.' };
     const { error } = await supabase.functions.invoke('create-user', { body: dados });
     if (error) {
@@ -130,6 +163,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const definirSenha = async (senha: string) => {
+    if (!supabase) {
+      return {
+        sucesso: false,
+        mensagem: supabaseConfigWarning || 'Supabase não configurado no ambiente do projeto.',
+      };
+    }
+
     const { data: { user }, error: userError } = await supabase.auth.getUser();
     if (userError || !user) return { sucesso: false, mensagem: 'O convite não foi validado. Solicite um novo link à coordenação.' };
 
@@ -144,6 +184,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const alternarStatusUsuario = async (id: string) => {
+    if (!supabase) {
+      return {
+        sucesso: false,
+        mensagem: supabaseConfigWarning || 'Supabase não configurado no ambiente do projeto.',
+      };
+    }
+
     const target = usuarios.find((user) => user.id === id);
     if (!target || id === usuarioAtual?.id) return { sucesso: false, mensagem: 'Não é possível alterar este usuário.' };
     const { error } = await supabase.from('profiles').update({ ativo: !target.ativo }).eq('id', id);
@@ -153,6 +200,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return { sucesso: true };
   };
 
-  return <AuthContext.Provider value={{ usuarioAtual, usuarios, estaCarregando, precisaDefinirSenha, login, logout, convidarUsuario, definirSenha, alternarStatusUsuario }}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider
+      value={{
+        usuarioAtual,
+        usuarios,
+        estaCarregando,
+        precisaDefinirSenha,
+        supabaseConfigurado: isSupabaseConfigured,
+        login,
+        logout,
+        convidarUsuario,
+        definirSenha,
+        alternarStatusUsuario,
+      }}
+    >
+      {children}
+    </AuthContext.Provider>
+  );
 };
-export const useAuth = () => { const context = useContext(AuthContext); if (!context) throw new Error('useAuth deve ser usado dentro de AuthProvider'); return context; };
+
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (!context) throw new Error('useAuth deve ser usado dentro de AuthProvider');
+  return context;
+};

@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import { Lock, Mail, AlertCircle, ArrowRight, Shield } from 'lucide-react';
+import { Lock, Mail, AlertCircle, ArrowRight, Shield, Database } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 export const LoginScreen: React.FC = () => {
-  const { login, estaCarregando } = useAuth();
+  const { login, estaCarregando, supabaseConfigurado } = useAuth();
   const [email, setEmail] = useState('');
   const [senha, setSenha] = useState('');
   const [erro, setErro] = useState<string | null>(null);
@@ -46,6 +46,19 @@ export const LoginScreen: React.FC = () => {
             <span>Equipe D (Presença)</span>
           </div>
         </div>
+
+        {!supabaseConfigurado && (
+          <div className="mb-3.5 rounded-2xl border border-amber-200 bg-amber-50/95 p-3.5 text-xs text-amber-950 backdrop-blur-xl">
+            <p className="font-bold flex items-center gap-1.5 mb-1">
+              <Database className="h-4 w-4 text-amber-600 shrink-0" />
+              Configuração do Supabase pendente
+            </p>
+            <p className="text-[11px] leading-relaxed text-amber-900">
+              Defina <code className="font-mono font-bold">VITE_SUPABASE_URL</code> e{' '}
+              <code className="font-mono font-bold">VITE_SUPABASE_ANON_KEY</code> nas variáveis de ambiente do projeto (Settings → Secrets ou <code className="font-mono">.env.local</code>) para habilitar o login.
+            </p>
+          </div>
+        )}
 
         {/* Card do Formulário Frosted Glass */}
         <div className="rounded-[32px] bg-white/85 p-6 shadow-[0_16px_50px_rgba(0,0,0,0.06)] backdrop-blur-2xl border border-white/70">
@@ -102,8 +115,8 @@ export const LoginScreen: React.FC = () => {
 
             <button
               type="submit"
-              disabled={estaCarregando}
-              className="w-full min-h-[50px] rounded-2xl bg-gradient-to-r from-[#007a87] to-[#0d9488] font-bold text-white shadow-md hover:opacity-95 active:scale-98 transition flex items-center justify-center gap-2 text-sm disabled:opacity-50"
+              disabled={estaCarregando || !supabaseConfigurado}
+              className="w-full min-h-[50px] rounded-2xl bg-gradient-to-r from-[#007a87] to-[#0d9488] font-bold text-white shadow-md hover:opacity-95 active:scale-98 transition flex items-center justify-center gap-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {estaCarregando ? (
                 <span>Validando acesso...</span>
